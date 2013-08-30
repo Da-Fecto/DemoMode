@@ -1,0 +1,102 @@
+<?php
+
+/**
+ * Conditional Demo for ProcessWire
+ * 
+ * author: Martijn Geerts
+ * 30 august 2013
+ *
+ * ProcessWire 2.x 
+ * Copyright (C) 2012 by Ryan Cramer 
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * 
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
+class DemoMode extends WireData implements Module, ConfigurableModule {
+
+	public static function getModuleInfo() {
+		return array(
+			'title' => __('Demo Mode', __FILE__), // getModuleInfo title
+			'summary' => __('Disable saving for the selected roles.', __FILE__), // getModuleInfo summary
+			'version' => 1, 
+			'singular' => true, 
+			'autoload' => true, 
+			); 
+	}
+    
+    
+    /**
+     * Array containing (int) id's from selected roles
+     *
+     */    
+	protected static $defaults = array(
+		"roles" => null,
+		);
+	
+	
+	/**
+	 * Populate default config data
+	 *
+	 */
+	public function __construct() {
+		foreach(self::$defaults as $key => $value) $this->set($key, $value); 
+	}
+
+
+	/**
+	 * Initialize the hook
+	 *
+	 */
+	public function init() {
+		$this->addHookBefore('Page::render', $this, 'setDemoMode'); 
+	}	
+	
+	
+	/**
+	 * Put user in demo id user has selected role(s) 
+	 *
+	 */
+	public function setDemoMode($event) {
+		// Array containing selected role(s) id's
+		$demo_roles = (array) $this->roles; 
+		
+		foreach($this->user->roles as $role) {
+			if( in_array($role->id, $demo_roles)) {
+				$this->config->demo = true;
+				break;
+			}
+		}		
+	}
+	
+	
+	/**
+	 * Module interactive configuration field
+	 *
+	 */
+	static public function getModuleConfigInputfields(array $data) {
+ 
+		$config = wire("config");
+		// Array with (int) ID's from Guest & Superuser roles
+		$exclude = array( $config->guestUserRolePageID, $config->superUserRolePageID );
+
+		$data = array_merge(self::$defaults, $data);
+
+		$fieldwrapper = new InputfieldWrapper();
+		$field = wire("modules")->get('InputfieldAsmSelect');
+		$field->name = 'roles';
+		$field->value = $data['roles'];
+		$field->label = __('Select Roles');
+		$field->description = __('ProcessWire is set to demo mode for users with the selected role(s)');
+		foreach(wire('roles') as $role) {
+		    // exclude Guest & Superuser roles
+			if(!in_array($role->id, $exclude)) {
+				$field->addOption($role->id, $role->name);
+			}
+		}
+		$fieldwrapper->append($field);
+		return $fieldwrapper;
+	}	 
+}	
